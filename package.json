@@ -4,8 +4,18 @@
   "description": "A simple task manager API with user authentication using Node.js, Express, and MongoDB.",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+      "dev": "nodemon server.js"
+
   },
   "author": "tahaql",
-  "license": "ISC"
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "mongoose": "^8.15.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
 }
