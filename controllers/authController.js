@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
+const { validationResult } = require("express-validator");
 
 // Create JWT token
 const createToken = (user) => {
@@ -12,6 +13,10 @@ const createToken = (user) => {
 
 // Register
 exports.register = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   //console.log("REGISTER BODY:", req.body)
   try {
     const { username, email, password } = req.body;
@@ -31,6 +36,10 @@ exports.register = async (req, res) => {
 
 // Login
 exports.login = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     const { email, password } = req.body;
 
