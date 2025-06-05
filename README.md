@@ -13,3 +13,26 @@ A simple RESTful API for managing tasks, built with Node.js, Express, and MongoD
 - Express.js
 - MongoDB & Mongoose
 
+## 🔐 Authentication
+
+- User registration and login with JWT authentication
+- Secure routes using JWT middleware
+- Refresh token mechanism for token renewal
+- Logout endpoint to invalidate refresh tokens
+
+## 📚 API Documentation
+
+- API documented using Swagger (OpenAPI 3.0)
+- Access documentation at `/api-docs` endpoint after running the server
+
+## 🧪 Testing
+
+- Tested with Postman collection including authentication and task management routes
+- Supports access and refresh token usage in requests
+
+## 📦 Additional Dependencies
+
+- bcrypt for password hashing
+- jsonwebtoken for JWT handling
+- express-validator for input validation
+- swagger-jsdoc and swagger-ui-express for API documentation
