@@ -2,7 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
-
+const authRoutes = require("./routes/auth");
+const taskRoutes = require("./routes/task");
 // ENV config
 dotenv.config();
 
@@ -24,6 +25,10 @@ mongoose
 app.get("/", (req, res) => {
   res.send("Task Manager API is running...");
 });
+
+// Use api
+app.use("/api/auth", authRoutes);
+app.use("/api/tasks", taskRoutes);
 
 // Start server
 app.listen(PORT, () => {
