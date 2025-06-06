@@ -4,9 +4,13 @@ const { validationResult } = require("express-validator");
 
 // Create JWT tokens
 const createAccessToken = (user) => {
-  return jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, {
-    expiresIn: "15m",
-  });
+  return jwt.sign(
+    { id: user._id, email: user.email, role: user.role },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "15m",
+    }
+  );
 };
 
 const createRefreshToken = (user) => {

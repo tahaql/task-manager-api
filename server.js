@@ -4,6 +4,7 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const authRoutes = require("./routes/auth");
 const taskRoutes = require("./routes/task");
+const adminRoutes = require("./routes/admin");
 const swaggerJsdoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
 // ENV config
@@ -60,5 +61,6 @@ app.get("/", (req, res) => {
 // Use api
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/admin", adminRoutes);
 
 module.exports = app;
