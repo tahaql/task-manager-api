@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Task Manager API",
-    "_postman_id": "example-id",
+    "_postman_id": "b8a3b612-1e5f-4c6d-8bbf-2a4f0a39c1a7",
     "description": "Collection for testing Task Manager project with JWT auth and refresh token",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -36,7 +36,9 @@
       ],
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"email\": \"reza@example.com\",\n  \"password\": \"123456\"\n}",
@@ -97,6 +99,19 @@
     },
     {
       "name": "Refresh Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const data = pm.response.json();",
+              "pm.environment.set(\"access_token\", data.accessToken);",
+              "pm.environment.set(\"refresh_token\", data.refreshToken);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -111,6 +126,18 @@
     },
     {
       "name": "Logout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.environment.unset(\"access_token\");",
+              "pm.environment.unset(\"refresh_token\");"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -122,8 +149,7 @@
         },
         "url": { "raw": "http://localhost:3000/api/auth/logout", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["api", "auth", "logout"] }
       }
-    }
-    ,
+    },
     {
       "name": "Get All Users (Admin Only)",
       "request": {
@@ -143,8 +169,7 @@
           "path": ["api", "admin", "users"]
         }
       }
-    }
-    ,
+    },
     {
       "name": "Delete All Users (Admin)",
       "request": {

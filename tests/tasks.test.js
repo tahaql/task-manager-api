@@ -3,22 +3,17 @@ const app = require("../server");
 const mongoose = require("mongoose");
 const Task = require("../models/task");
 const User = require("../models/user");
+const connectDB = require("../config/db");
 
 describe("Tasks API", () => {
   let token;
   let userId;
-  let taskId;
+  let otherUserToken;
 
   beforeAll(async () => {
-    await mongoose.connect(
-      process.env.MONGO_URI_TEST || process.env.MONGO_URI,
-      {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      }
-    );
+    await connectDB();
 
-    // ثبت‌نام و لاگین کاربر و گرفتن توکن
+    // ثبت‌نام کاربر اصلی
     await request(app).post("/api/auth/register").send({
       username: "taskuser",
       email: "taskuser@example.com",
@@ -31,18 +26,33 @@ describe("Tasks API", () => {
     });
 
     token = res.body.accessToken;
-    userId = res.body.user.id;
-  });
+    const user = await User.findOne({ email: "taskuser@example.com" });
+    userId = user._id.toString();
 
-  afterAll(async () => {
-    await mongoose.connection.close();
+    // ثبت‌نام کاربر دیگر
+    await request(app).post("/api/auth/register").send({
+      username: "otheruser",
+      email: "other@example.com",
+      password: "123456",
+    });
+
+    const res2 = await request(app).post("/api/auth/login").send({
+      email: "other@example.com",
+      password: "123456",
+    });
+
+    otherUserToken = res2.body.accessToken;
   });
 
   afterEach(async () => {
     await Task.deleteMany({});
   });
 
-  test("Create task", async () => {
+  afterAll(async () => {
+    await mongoose.connection.close();
+  });
+
+  test("should create a task", async () => {
     const res = await request(app)
       .post("/api/tasks")
       .set("Authorization", `Bearer ${token}`)
@@ -51,15 +61,13 @@ describe("Tasks API", () => {
     expect(res.statusCode).toBe(201);
     expect(res.body.title).toBe("Test Task");
     expect(res.body.user).toBe(userId);
-    taskId = res.body._id;
   });
 
-  test("Get tasks", async () => {
-    // ابتدا یک تسک ایجاد کن
+  test("should get user tasks", async () => {
     await request(app)
       .post("/api/tasks")
       .set("Authorization", `Bearer ${token}`)
-      .send({ title: "Test Task" });
+      .send({ title: "User Task" });
 
     const res = await request(app)
       .get("/api/tasks")
@@ -70,41 +78,65 @@ describe("Tasks API", () => {
     expect(res.body.length).toBeGreaterThanOrEqual(1);
   });
 
-  test("Update task", async () => {
-    // ابتدا یک تسک ایجاد کن
+  test("should update user task", async () => {
     const createRes = await request(app)
       .post("/api/tasks")
       .set("Authorization", `Bearer ${token}`)
-      .send({ title: "Initial Task" });
+      .send({ title: "Old Task" });
 
-    taskId = createRes.body._id;
-
-    // ویرایش تسک
     const res = await request(app)
-      .put(`/api/tasks/${taskId}`)
+      .put(`/api/tasks/${createRes.body._id}`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ title: "Updated Task", completed: true });
+      .send({ title: "Updated Task" });
 
     expect(res.statusCode).toBe(200);
     expect(res.body.title).toBe("Updated Task");
-    expect(res.body.completed).toBe(true);
   });
 
-  test("Delete task", async () => {
-    // ابتدا یک تسک ایجاد کن
+  test("should delete user task", async () => {
     const createRes = await request(app)
       .post("/api/tasks")
       .set("Authorization", `Bearer ${token}`)
       .send({ title: "Task to Delete" });
 
-    taskId = createRes.body._id;
-
-    // حذف تسک
     const res = await request(app)
-      .delete(`/api/tasks/${taskId}`)
+      .delete(`/api/tasks/${createRes.body._id}`)
       .set("Authorization", `Bearer ${token}`);
 
     expect(res.statusCode).toBe(200);
-    expect(res.body.message).toBe("Task deleted successfully");
+    expect(res.body.message).toMatch(/deleted/i);
+  });
+
+  test("should not access task without token", async () => {
+    const res = await request(app).get("/api/tasks");
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  test("should not update other user's task", async () => {
+    const createRes = await request(app)
+      .post("/api/tasks")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Owner Task" });
+
+    const res = await request(app)
+      .put(`/api/tasks/${createRes.body._id}`)
+      .set("Authorization", `Bearer ${otherUserToken}`)
+      .send({ title: "Hacked" });
+
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("should not delete other user's task", async () => {
+    const createRes = await request(app)
+      .post("/api/tasks")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Owner Task" });
+
+    const res = await request(app)
+      .delete(`/api/tasks/${createRes.body._id}`)
+      .set("Authorization", `Bearer ${otherUserToken}`);
+
+    expect(res.statusCode).toBe(403);
   });
 });

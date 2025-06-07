@@ -24,12 +24,19 @@ const getTasks = async (req, res) => {
 // PUT /api/tasks/:id
 const updateTask = async (req, res) => {
   try {
-    const task = await Task.findOneAndUpdate(
-      { _id: req.params.id, user: req.user.id },
-      req.body,
-      { new: true }
-    );
-    if (!task) return res.status(404).json({ message: "Task not found or unauthorized" });
+    const task = await Task.findById(req.params.id);
+    
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    if (task.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: "You are not allowed to update this task" });
+    }
+
+    Object.assign(task, req.body);
+    await task.save();
+
     res.json(task);
   } catch (err) {
     res.status(500).json({ message: "Server error" });
@@ -39,11 +46,18 @@ const updateTask = async (req, res) => {
 // DELETE /api/tasks/:id
 const deleteTask = async (req, res) => {
   try {
-    const task = await Task.findOneAndDelete({
-      _id: req.params.id,
-      user: req.user.id,
-    });
-    if (!task) return res.status(404).json({ message: "Task not found or unauthorized" });
+    const task = await Task.findById(req.params.id);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    if (task.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: "You are not authorized to delete this task" });
+    }
+
+    await task.deleteOne();
+
     res.json({ message: "Task deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: "Server error" });

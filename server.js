@@ -1,5 +1,5 @@
 const express = require("express");
-const mongoose = require("mongoose");
+const connectDB = require("./config/db");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const authRoutes = require("./routes/auth");
@@ -39,19 +39,24 @@ const specs = swaggerJsdoc(options);
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
-// DB connection
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("Connected to MongoDB");
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error("MongoDB connection error:", err);
-    process.exit(1);
-  });
+// DB connection and server start
+if (require.main === module) {
+  const startServer = async () => {
+    try {
+      await connectDB();
+      console.log("✅ Connected to MongoDB successfully");
+
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+      });
+    } catch (err) {
+      console.error("❌ Failed to start server:", err.message);
+      process.exit(1);
+    }
+  };
+
+  startServer();
+}
 
 // Base route
 app.get("/", (req, res) => {

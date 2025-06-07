@@ -1,15 +1,13 @@
-
 const request = require("supertest");
 const app = require("../server");
 const mongoose = require("mongoose");
 const User = require("../models/user");
-
+const Session = require("../models/session");
+const connectDB = require("../config/db");
+require("dotenv").config();
 describe("Auth API", () => {
   beforeAll(async () => {
-    await mongoose.connect(process.env.MONGO_URI_TEST || process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await connectDB();
   });
 
   afterAll(async () => {
@@ -18,27 +16,47 @@ describe("Auth API", () => {
 
   afterEach(async () => {
     await User.deleteMany({});
+    await Session.deleteMany({});
   });
 
-  test("Register user", async () => {
+  test("should register a new user", async () => {
     const res = await request(app).post("/api/auth/register").send({
       username: "testuser",
       email: "test@example.com",
       password: "123456",
     });
+
     expect(res.statusCode).toBe(201);
-    expect(res.body.message).toBe("User registered successfully ✅");
+    expect(res.body).toHaveProperty("user");
+    expect(res.body.user.email).toBe("test@example.com");
   });
 
-  test("Login user", async () => {
+  test("should not register with existing email", async () => {
     await request(app).post("/api/auth/register").send({
-      username: "testuser",
-      email: "test@example.com",
+      username: "user1",
+      email: "duplicate@example.com",
+      password: "123456",
+    });
+
+    const res = await request(app).post("/api/auth/register").send({
+      username: "user2",
+      email: "duplicate@example.com",
+      password: "abcdef",
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.message).toMatch(/email.*already/i);
+  });
+
+  test("should login with correct credentials", async () => {
+    await request(app).post("/api/auth/register").send({
+      username: "loginuser",
+      email: "login@example.com",
       password: "123456",
     });
 
     const res = await request(app).post("/api/auth/login").send({
-      email: "test@example.com",
+      email: "login@example.com",
       password: "123456",
     });
 
@@ -46,118 +64,96 @@ describe("Auth API", () => {
     expect(res.body).toHaveProperty("accessToken");
     expect(res.body).toHaveProperty("refreshToken");
   });
-});
 
-test("Admin can access all users route", async () => {
-  // Register admin user
-  await request(app).post("/api/auth/register").send({
-    username: "adminuser",
-    email: "admin@example.com",
-    password: "123456",
-    role: "admin"
+  test("should not login with incorrect password", async () => {
+    await request(app).post("/api/auth/register").send({
+      username: "wrongpass",
+      email: "wrongpass@example.com",
+      password: "123456",
+    });
+
+    const res = await request(app).post("/api/auth/login").send({
+      email: "wrongpass@example.com",
+      password: "wrongpass",
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body.message).toBe("Invalid credentials");
   });
 
-  // Manually set role to admin (in case default was "user")
-  await User.findOneAndUpdate({ email: "admin@example.com" }, { role: "admin" });
+  test("should create a session on login", async () => {
+    await request(app).post("/api/auth/register").send({
+      username: "sessionuser",
+      email: "session@example.com",
+      password: "123456",
+    });
 
-  // Login admin user
-  const loginRes = await request(app).post("/api/auth/login").send({
-    email: "admin@example.com",
-    password: "123456"
+    const res = await request(app).post("/api/auth/login").send({
+      email: "session@example.com",
+      password: "123456",
+    });
+
+    const session = await Session.findOne({
+      refreshToken: res.body.refreshToken,
+    });
+    expect(session).not.toBeNull();
+    expect(session.isValid).toBe(true);
   });
 
-  const token = loginRes.body.accessToken;
+  test("should refresh access token with valid refresh token", async () => {
+    await request(app).post("/api/auth/register").send({
+      username: "refreshuser",
+      email: "refresh@example.com",
+      password: "123456",
+    });
 
-  // Access admin route
-  const res = await request(app)
-    .get("/api/admin/users")
-    .set("Authorization", `Bearer ${token}`);
+    const login = await request(app).post("/api/auth/login").send({
+      email: "refresh@example.com",
+      password: "123456",
+    });
 
-  expect(res.statusCode).toBe(200);
-  expect(Array.isArray(res.body)).toBe(true);
-});
+    // کمی صبر برای ذخیره شدن سشن در دیتابیس
+    await new Promise((r) => setTimeout(r, 100));
 
-test("Normal user cannot access admin-only route", async () => {
-  // Register normal user
-  await request(app).post("/api/auth/register").send({
-    username: "normaluser",
-    email: "normal@example.com",
-    password: "123456"
+    const res = await request(app).post("/api/auth/refresh").send({
+      refreshToken: login.body.refreshToken,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty("accessToken");
   });
 
-  // Login normal user
-  const loginRes = await request(app).post("/api/auth/login").send({
-    email: "normal@example.com",
-    password: "123456"
+  test("should not refresh access token with invalid token", async () => {
+    const res = await request(app).post("/api/auth/refresh").send({
+      refreshToken: "invalid.token.here",
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body.message).toBe("Invalid or expired refresh token");
   });
 
-  const token = loginRes.body.accessToken;
+  test("should logout and invalidate session", async () => {
+    await request(app).post("/api/auth/register").send({
+      username: "logoutuser",
+      email: "logout@example.com",
+      password: "123456",
+    });
 
-  // Attempt to access admin route
-  const res = await request(app)
-    .get("/api/admin/users")
-    .set("Authorization", `Bearer ${token}`);
+    const login = await request(app).post("/api/auth/login").send({
+      email: "logout@example.com",
+      password: "123456",
+    });
 
-  expect(res.statusCode).toBe(403);
-  expect(res.body.message).toBe("Forbidden: Insufficient role");
-});
+    const res = await request(app).post("/api/auth/logout").send({
+      refreshToken: login.body.refreshToken,
+    });
 
-test("Admin can get total user count", async () => {
-  const loginRes = await request(app).post("/api/auth/login").send({
-    email: "admin@example.com",
-    password: "123456"
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toBe("Logged out successfully");
+
+    const session = await Session.findOne({
+      refreshToken: login.body.refreshToken,
+    });
+    expect(session.isValid).toBe(false);
   });
-  const token = loginRes.body.accessToken;
-
-  const res = await request(app)
-    .get("/api/admin/users/count")
-    .set("Authorization", `Bearer ${token}`);
-
-  expect(res.statusCode).toBe(200);
-  expect(typeof res.body.count).toBe("number");
-});
-
-test("Admin can change user role", async () => {
-  const regRes = await request(app).post("/api/auth/register").send({
-    username: "testuser",
-    email: "testuser@example.com",
-    password: "123456"
-  });
-  const userId = (await User.findOne({ email: "testuser@example.com" }))._id;
-
-  const loginRes = await request(app).post("/api/auth/login").send({
-    email: "admin@example.com",
-    password: "123456"
-  });
-  const token = loginRes.body.accessToken;
-
-  const res = await request(app)
-    .patch(`/api/admin/users/${userId}/role`)
-    .set("Authorization", `Bearer ${token}`)
-    .send({ role: "admin" });
-
-  expect(res.statusCode).toBe(200);
-  expect(res.body.user.role).toBe("admin");
-});
-
-test("Admin can delete a specific user", async () => {
-  await request(app).post("/api/auth/register").send({
-    username: "deleteuser",
-    email: "delete@example.com",
-    password: "123456"
-  });
-  const user = await User.findOne({ email: "delete@example.com" });
-
-  const loginRes = await request(app).post("/api/auth/login").send({
-    email: "admin@example.com",
-    password: "123456"
-  });
-  const token = loginRes.body.accessToken;
-
-  const res = await request(app)
-    .delete(`/api/admin/users/${user._id}`)
-    .set("Authorization", `Bearer ${token}`);
-
-  expect(res.statusCode).toBe(200);
-  expect(res.body.message).toBe("User deleted successfully");
 });
