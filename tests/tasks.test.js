@@ -56,11 +56,12 @@ describe("Tasks API", () => {
     const res = await request(app)
       .post("/api/tasks")
       .set("Authorization", `Bearer ${token}`)
-      .send({ title: "Test Task" });
+      .send({ title: "Test Task", description: "Sample description" });
 
     expect(res.statusCode).toBe(201);
     expect(res.body.title).toBe("Test Task");
     expect(res.body.user).toBe(userId);
+    expect(res.body.description).toBe("Sample description");
   });
 
   test("should get user tasks", async () => {
@@ -87,10 +88,11 @@ describe("Tasks API", () => {
     const res = await request(app)
       .put(`/api/tasks/${createRes.body._id}`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ title: "Updated Task" });
+      .send({ title: "Updated Task", description: "Updated description" });
 
     expect(res.statusCode).toBe(200);
     expect(res.body.title).toBe("Updated Task");
+    expect(res.body.description).toBe("Updated description");
   });
 
   test("should delete user task", async () => {

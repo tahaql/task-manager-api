@@ -57,7 +57,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Finish backend project\"\n}"
+          "raw": "{\n  \"title\": \"Finish backend project\",\n  \"description\": \"This is a detailed description for the backend task\"\n}"
         },
         "url": { "raw": "http://localhost:3000/api/tasks", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["api", "tasks"] }
       }
@@ -82,7 +82,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Updated title\",\n  \"completed\": true\n}"
+          "raw": "{\n  \"title\": \"Updated title\",\n  \"completed\": true,\n  \"description\": \"Updated task description\"\n}"
         },
         "url": { "raw": "http://localhost:3000/api/tasks/{{task_id}}", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["api", "tasks", "{{task_id}}"] }
       }

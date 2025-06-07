@@ -3,7 +3,11 @@ const Task = require("../models/task");
 // POST /api/tasks
 const createTask = async (req, res) => {
   try {
-    const task = new Task({ ...req.body, user: req.user.id });
+    const { title, description } = req.body;
+    if (!title) {
+      return res.status(400).json({ message: "Title is required" });
+    }
+    const task = new Task({ title, description, user: req.user.id });
     await task.save();
     res.status(201).json(task);
   } catch (err) {
@@ -34,7 +38,12 @@ const updateTask = async (req, res) => {
       return res.status(403).json({ message: "You are not allowed to update this task" });
     }
 
-    Object.assign(task, req.body);
+    const { title, description, completed } = req.body;
+
+    if (title !== undefined) task.title = title;
+    if (description !== undefined) task.description = description;
+    if (completed !== undefined) task.completed = completed;
+
     await task.save();
 
     res.json(task);
